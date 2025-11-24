@@ -11,6 +11,7 @@ const CrearLineaPage: React.FC = () => {
   const [descripcion, setDescripcion] = useState("");
   const [opcuaUrl, setOpcuaUrl] = useState(""); // <-- V5: NUEVO ESTADO
   const navigate = useNavigate();
+  const [limiteReprocesos, setLimiteReprocesos] = useState(3); // Default 3
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   const queryClient = useQueryClient();
@@ -30,7 +31,7 @@ const CrearLineaPage: React.FC = () => {
 
   const doCreateLinea = () => {
     setShowConfirmModal(false);
-    mutate({ nombre, descripcion, opcuaUrl }); // <-- V5: ENVIAR URL
+    mutate({ nombre, descripcion, opcuaUrl, limiteReprocesos }); // <-- V5: ENVIAR URL Y LIMITE
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -80,6 +81,25 @@ const CrearLineaPage: React.FC = () => {
           />
           <p className="text-xs text-gray-500 mt-1">
             Si se deja vacío, esta línea no será monitoreada.
+          </p>
+        </div>
+        {/* -------------------------------- */}
+        {/* --- V5: CAMPO NUEVO PARA LIMITE DE REPROCESOS --- */}
+        <div>
+          <label className="block text-gray-700 dark:text-gray-300 font-medium mb-1">
+            Límite de Reprocesos (Tolerancia)
+          </label>
+          <input
+            type="number"
+            min="1"
+            max="10"
+            value={limiteReprocesos}
+            onChange={(e) => setLimiteReprocesos(parseInt(e.target.value) || 0)}
+            className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            Si un producto falla esta cantidad de veces, será DESCARTADO
+            automáticamente.
           </p>
         </div>
         {/* -------------------------------- */}

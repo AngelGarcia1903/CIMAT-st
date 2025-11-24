@@ -324,68 +324,129 @@ function setupStationMonitoring(
 /**
  * El "Cerebro" (Lógica de Estados) (LÓGICA ORIGINAL CONSERVADA)
  */
+/**
+ * El "Cerebro" V5 (Lógica de Tolerancias y Estados)
+ */
+/**
+ * El "Cerebro" V5 (Lógica Corregida de Ciclos de Reproceso)
+ */
 async function actualizarEstadoProducto(
   productoId: number,
   estadoActual: EstadoProducto,
   lineaId: number,
   huboFalloEnEstaPasada: boolean
 ) {
-  let nuevoEstado: EstadoProducto = estadoActual;
+  // 1. Obtener datos de referencia (Límite y Primera Estación)
+  const linea = await prisma.lineaProduccion.findUnique({
+    where: { id: lineaId },
+    select: { limiteReprocesos: true },
+  });
+  const limite = linea?.limiteReprocesos ?? 3;
+
+  const primeraEstacion = await prisma.estacion.findFirst({
+    where: { lineaId: lineaId },
+    orderBy: { orden: "asc" }, // La estación 1
+  });
 
   const ultimaEstacion = await prisma.estacion.findFirst({
     where: { lineaId: lineaId },
-    orderBy: { orden: "desc" },
+    orderBy: { orden: "desc" }, // La última
   });
 
+  // Obtenemos el registro que acabamos de crear para saber en qué estación estamos
   const registroActual = await prisma.registro.findFirst({
     where: { productoId: productoId },
     orderBy: { fecha: "desc" },
     include: { estacion: true },
   });
 
-  const esUltimaEstacion = registroActual?.estacionId === ultimaEstacion?.id;
+  const estacionActualId = registroActual?.estacionId;
+  const esPrimeraEstacion = estacionActualId === primeraEstacion?.id;
+  const esUltimaEstacion = estacionActualId === ultimaEstacion?.id;
 
-  const fallosTotales = await prisma.registro.count({
-    where: { productoId: productoId, resultado: ResultadoRegistro.NO_OK },
+  // 2. Lógica de Incremento de Reprocesos (Solo al RE-INICIAR ciclo)
+  let nuevoConteo = 0;
+  const productoAntes = await prisma.producto.findUnique({
+    where: { id: productoId },
+    select: { conteoReprocesos: true },
   });
+  nuevoConteo = productoAntes?.conteoReprocesos || 0;
 
-  if (huboFalloEnEstaPasada) {
-    if (estadoActual === EstadoProducto.REPROCESO) {
-      nuevoEstado = EstadoProducto.DESCARTADO;
+  // REGLA DE ORO: Si estamos en la Estación 1 y el producto ya venía marcado como REPROCESO,
+  // significa que está dando una nueva vuelta. Aumentamos el contador.
+  if (esPrimeraEstacion && estadoActual === EstadoProducto.REPROCESO) {
+    nuevoConteo++;
+    await prisma.producto.update({
+      where: { id: productoId },
+      data: { conteoReprocesos: nuevoConteo },
+    });
+    console.log(
+      `[Cerebro] Producto ${productoId}: Iniciando Reproceso #${nuevoConteo} (Límite: ${limite})`
+    );
+  }
+
+  // 3. Regla Crítica: DESCARTADO por Límite
+  if (nuevoConteo >= limite) {
+    // Si ya llegamos al límite, se descarta y se ignora todo lo demás
+    if (estadoActual !== EstadoProducto.DESCARTADO) {
+      await prisma.producto.update({
+        where: { id: productoId },
+        data: { estado: EstadoProducto.DESCARTADO },
+      });
       console.log(
-        `[Cerebro] Producto ${productoId}: Falló en retrabajo -> DESCARTADO`
-      );
-    } else {
-      nuevoEstado = EstadoProducto.REPROCESO;
-      console.log(
-        `[Cerebro] Producto ${productoId}: Fallo detectado -> REPROCESO`
+        `[Cerebro] 🛑 Producto ${productoId} DESCARTADO (Excedió límite).`
       );
     }
+    return;
+  }
+
+  // 4. Lógica de Estados (Azul / Amarillo / Verde)
+  let nuevoEstado: EstadoProducto = estadoActual;
+
+  if (huboFalloEnEstaPasada) {
+    // Si falla aquí, se marca REPROCESO inmediatamente (pero no suma contador hasta que vuelva a empezar)
+    nuevoEstado = EstadoProducto.REPROCESO;
+    console.log(`[Cerebro] Fallo en estación intermedia -> REPROCESO`);
   } else {
-    if (esUltimaEstacion && fallosTotales === 0) {
-      nuevoEstado = EstadoProducto.COMPLETADO;
-      console.log(
-        `[Cerebro] Producto ${productoId}: Finalizó sin fallos -> COMPLETADO`
-      );
-    } else if (
-      estadoActual === EstadoProducto.REPROCESO &&
-      fallosTotales === 0
-    ) {
-      if (esUltimaEstacion) {
+    // Si NO hubo fallo en esta estación...
+
+    if (esUltimaEstacion) {
+      // Final de línea: Decidir si completó limpio o con manchas
+      if (nuevoConteo > 0 || estadoActual === EstadoProducto.REPROCESO) {
+        // Terminó, pero tuvo reprocesos previos o venía marcado mal (y no falló esta vez)
+        // Nota: Si pasó la última estación OK, pero tiene historial, ¿cómo lo quieres?
+        // Tu ejemplo: "si paso por todas y tiene todos los parametros en ok, su estado debe decir completado"
+        // PERO dijiste "aunque ya haya sido completado... diria cuantos reprocesos tuvo".
+
+        // INTERPRETACIÓN: Si termina la última estación SIN fallos AHORA, es COMPLETADO.
+        // El historial (conteoReprocesos) queda guardado en la columna numérica.
         nuevoEstado = EstadoProducto.COMPLETADO;
         console.log(
-          `[Cerebro] Producto ${productoId}: Finalizó (aunque tuvo reprocesos) -> COMPLETADO`
+          `[Cerebro] Finalizó línea (Rework #${nuevoConteo}) -> COMPLETADO`
         );
+      } else {
+        // Invicto
+        nuevoEstado = EstadoProducto.COMPLETADO;
+        console.log(`[Cerebro] Finalizó línea invicto -> COMPLETADO`);
       }
-    } else if (esUltimaEstacion && fallosTotales > 0) {
-      nuevoEstado = EstadoProducto.REPROCESO;
     } else {
-      if (estadoActual !== EstadoProducto.REPROCESO) {
+      // Estación Intermedia (y pasó OK)
+      // Si venía de REPROCESO y pasó la Estación 1 (reintento), debe volver a EN_PROCESO (Azul)
+      // para que el operador vea que "va bien" en esta vuelta.
+      if (estadoActual === EstadoProducto.REPROCESO && esPrimeraEstacion) {
+        nuevoEstado = EstadoProducto.EN_PROCESO;
+      } else if (estadoActual === EstadoProducto.REPROCESO) {
+        // Si es estación 2 y sigue OK, mantenemos el estado que traía?
+        // Tu regla: "dira siempre en_proceso en lo que pasa por todas las estaciones"
+        // Entonces, si no falló esta vez, forzamos EN_PROCESO.
+        nuevoEstado = EstadoProducto.EN_PROCESO;
+      } else {
         nuevoEstado = EstadoProducto.EN_PROCESO;
       }
     }
   }
 
+  // 5. Actualizar Estado si cambió
   if (nuevoEstado !== estadoActual) {
     await prisma.producto.update({
       where: { id: productoId },

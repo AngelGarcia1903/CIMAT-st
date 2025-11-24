@@ -45,6 +45,7 @@ interface Linea {
   nombre: string;
   descripcion?: string | null;
   opcuaUrl?: string | null;
+  limiteReprocesos?: number; // <--- AGREGAR ESTO
   estaciones: Estacion[];
   lotes?: { id: number; nombre: string; estado: string }[];
 }
@@ -149,6 +150,7 @@ const LineasTree: React.FC<LineasTreeProps> = ({
           nombre: lineaItem.nombre,
           descripcion: lineaItem.descripcion,
           opcuaUrl: lineaItem.opcuaUrl,
+          limiteReprocesos: lineaItem.limiteReprocesos, // <--- AGREGAR ESTO
         };
       } else if (type === "estacion") {
         const estacionItem = item as Estacion;

@@ -53,7 +53,8 @@ interface PasadaInfo {
 interface ProductoEnLote {
   numeroSerie: string;
   idProducto: number;
-  estado: string; // El estado GLOBAL del producto
+  estado: string;
+  conteoReprocesos: number;
   pasadas: PasadaInfo[]; // Array de pasadas (registros por estación)
 }
 // --- Fin Nuevas Interfaces ---
@@ -368,6 +369,9 @@ const MonitorProduccionPage: React.FC = () => {
                   <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                     Estación
                   </th>
+                  <th className="py-3 px-4 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                    Reprocesos
+                  </th>
                   <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                     Estado (Producto)
                   </th>
@@ -420,20 +424,36 @@ const MonitorProduccionPage: React.FC = () => {
                         <td className="py-3 px-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-200">
                           {pasada.nombreEstacion}
                         </td>
+                        <td className="py-3 px-4 whitespace-nowrap text-center text-sm">
+                          {/* Lógica Visual: Si está DESCARTADO, el número se pone ROJO y negrita */}
+                          <span
+                            className={`font-bold ${
+                              producto.estado === "DESCARTADO"
+                                ? "text-red-600 dark:text-red-400"
+                                : "text-gray-700 dark:text-gray-300"
+                            }`}
+                          >
+                            {producto.conteoReprocesos}
+                          </span>
+                        </td>
+
                         <td className="py-3 px-4 whitespace-nowrap">
-                          {/* Req #3: Usar el estado GLOBAL del producto */}
+                          {/* Lógica Visual Actualizada V5 */}
                           <span
                             className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                               producto.estado === "COMPLETADO"
                                 ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
                                 : producto.estado === "DESCARTADO"
                                 ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300"
-                                : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300"
+                                : producto.estado === "REPROCESO"
+                                ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300"
+                                : "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300" // EN_PROCESO ahora es AZUL
                             }`}
                           >
                             {producto.estado}
                           </span>
                         </td>
+
                         <td className="py-3 px-4 text-sm text-gray-500 dark:text-gray-300">
                           {pasada.parametros.map((p, i) => (
                             <div key={i} className="mb-1 last:mb-0">

@@ -12,6 +12,7 @@ interface LineaData {
   nombre: string;
   descripcion?: string | null;
   opcuaUrl?: string | null;
+  limiteReprocesos?: number; // <--- AGREGAR ESTO
 }
 
 const EditLineaPage: React.FC = () => {
@@ -21,6 +22,7 @@ const EditLineaPage: React.FC = () => {
   const [nombre, setNombre] = useState("");
   const [descripcion, setDescripcion] = useState("");
   const [opcuaUrl, setOpcuaUrl] = useState("");
+  const [limiteReprocesos, setLimiteReprocesos] = useState(3); // <--- AGREGAR ESTO
 
   // Query para obtener datos
   const {
@@ -33,7 +35,7 @@ const EditLineaPage: React.FC = () => {
     queryKey: ["lineaDetails", lineaId],
     queryFn: () => getProductionLineById(lineaId!),
     enabled: !!lineaId,
-    staleTime: 1000 * 30,
+    staleTime: 0,
     refetchOnWindowFocus: false, // Evitar refetch innecesario al cambiar ventana/pestaña
   });
 
@@ -43,6 +45,7 @@ const EditLineaPage: React.FC = () => {
       setNombre(linea.nombre);
       setDescripcion(linea.descripcion || "");
       setOpcuaUrl(linea.opcuaUrl || "");
+      setLimiteReprocesos(linea.limiteReprocesos ?? 3); // <--- AGREGAR ESTO
     }
   }, [linea]); // Solo depende de 'linea'
 
@@ -52,6 +55,7 @@ const EditLineaPage: React.FC = () => {
       nombre: string;
       descripcion: string;
       opcuaUrl?: string;
+      limiteReprocesos?: number; // <--- AGREGAR TIPO AQUÍ
     }) => updateProductionLine(lineaId!, updatedData),
     onSuccess: () => {
       toast.success("Línea actualizada.");
@@ -70,7 +74,7 @@ const EditLineaPage: React.FC = () => {
       toast.error("El nombre no puede estar vacío.");
       return;
     }
-    updateMutation.mutate({ nombre, descripcion, opcuaUrl });
+    updateMutation.mutate({ nombre, descripcion, opcuaUrl, limiteReprocesos }); // <--- AGREGAR ESTO
   };
 
   // --- Renderizado Condicional Mejorado ---
@@ -154,6 +158,23 @@ const EditLineaPage: React.FC = () => {
             placeholder="ej. opc.tcp://192.168.1.10:4840"
             className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white font-mono text-sm"
           />
+        </div>
+
+        <div>
+          <label className="block text-gray-700 dark:text-gray-300 font-medium mb-1">
+            Límite de Reprocesos
+          </label>
+          <input
+            type="number"
+            min="1"
+            max="10"
+            value={limiteReprocesos}
+            onChange={(e) => setLimiteReprocesos(parseInt(e.target.value) || 0)}
+            className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            Número máximo de fallos antes de descartar (Tolerancia).
+          </p>
         </div>
         {/* Botones (sin cambios) */}
         <div className="flex justify-between items-center pt-4 border-t dark:border-gray-600 mt-6">

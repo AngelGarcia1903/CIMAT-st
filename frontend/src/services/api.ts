@@ -61,14 +61,21 @@ export const getProductionLineById = async (id: string) => {
 };
 export const createProductionLine = async (lineaData: {
   nombre: string;
-  descripcion?: string | null;
+  descripcion?: string;
+  limiteReprocesos?: number;
+  opcuaUrl?: string | null;
 }) => {
   const response = await api.post("/lineas", lineaData);
   return response.data;
 };
 export const updateProductionLine = async (
   id: string,
-  lineaData: { nombre?: string; descripcion?: string | null }
+  lineaData: {
+    nombre?: string;
+    descripcion?: string;
+    limiteReprocesos?: number;
+    opcuaUrl?: string | null;
+  }
 ) => {
   const response = await api.put(`/lineas/${id}`, lineaData);
   return response.data;

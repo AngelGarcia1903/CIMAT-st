@@ -293,7 +293,14 @@ export const getRegistrosLoteActivoPorLinea = async (
         },
       },
       include: {
-        producto: { select: { id: true, numeroSerie: true, estado: true } },
+        producto: {
+          select: {
+            id: true,
+            numeroSerie: true,
+            estado: true,
+            conteoReprocesos: true,
+          },
+        },
         estacion: { select: { id: true, nombreEstacion: true, orden: true } },
         parametro: { select: { id: true, nombreParametro: true } },
       },
@@ -313,6 +320,7 @@ export const getRegistrosLoteActivoPorLinea = async (
           numeroSerie: reg.producto.numeroSerie,
           idProducto: reg.producto.id,
           estado: reg.producto.estado,
+          conteoReprocesos: reg.producto.conteoReprocesos,
           pasadas: {} as Record<string, any>,
           fechaUltimoRegistro: reg.fecha,
         });

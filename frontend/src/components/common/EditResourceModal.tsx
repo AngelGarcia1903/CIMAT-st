@@ -41,6 +41,7 @@ const EditResourceModal: React.FC<EditResourceModalProps> = ({
       if (resourceType === "linea") {
         // V5: Asegurar que opcuaUrl exista en el estado
         initialData.opcuaUrl = initialData.opcuaUrl ?? "";
+        initialData.limiteReprocesos = initialData.limiteReprocesos ?? 3; // <--- AGREGAR
       } else if (resourceType === "estacion") {
         // V4: Asegurar campos de triggers
         initialData.triggerNodeId = initialData.triggerNodeId ?? "";
@@ -72,7 +73,12 @@ const EditResourceModal: React.FC<EditResourceModalProps> = ({
     let processedValue: any = value;
 
     // 1. Conversión numérica para orden y min/max
-    if (name === "orden" || name === "valorMin" || name === "valorMax") {
+    if (
+      name === "orden" ||
+      name === "valorMin" ||
+      name === "valorMax" ||
+      name === "limiteReprocesos"
+    ) {
       processedValue = value === "" ? null : parseFloat(value);
       // Validación básica (opcional, toast ya avisa)
       if (value !== "" && isNaN(processedValue)) {
@@ -208,6 +214,21 @@ const EditResourceModal: React.FC<EditResourceModalProps> = ({
                 onChange={handleChange}
                 placeholder="opc.tcp://IP:PUERTO"
                 className="w-full p-2 mt-1 border rounded dark:bg-gray-700 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+              />
+            </div>
+
+            {/* ... LIMITE DE REPROCESOS ... */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Límite de Reprocesos
+              </label>
+              <input
+                type="number"
+                name="limiteReprocesos"
+                min="1"
+                value={formData.limiteReprocesos ?? 3}
+                onChange={handleChange}
+                className="w-full p-2 mt-1 border rounded dark:bg-gray-700 dark:border-gray-600 focus:ring-2 focus:ring-blue-500"
               />
             </div>
             {/* ------------------- */}

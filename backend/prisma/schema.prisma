@@ -22,6 +22,8 @@ model LineaProduccion {
   descripcion String?
   opcuaUrl    String?  @map("opcua_url")
   fecha       DateTime @default(now()) @map("fecha_creacion")
+  // --- CAMBIO V5 ---
+  limiteReprocesos Int      @default(3) @map("limite_reprocesos")
 
   lotes      Lote[]
   estaciones Estacion[]
@@ -81,6 +83,8 @@ model Producto {
   loteId      Int            @map("id_lote")
   numeroSerie String         @unique @map("numero_serie")
   estado      EstadoProducto @default(EN_PROCESO)
+  // --- CAMBIO V5 ---
+  conteoReprocesos Int            @default(0) @map("conteo_reprocesos")
 
   // --- ¡CORRECCIÓN AQUÍ! ---
   lote      Lote     @relation(fields: [loteId], references: [id], onDelete: Cascade)

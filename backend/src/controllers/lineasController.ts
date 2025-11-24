@@ -51,7 +51,7 @@ export const getLineaById = async (req: Request, res: Response) => {
 // POST - Crear Línea (V5: Acepta opcuaUrl)
 // ========================================================================
 export const createLinea = async (req: Request, res: Response) => {
-  const { nombre, descripcion, opcuaUrl } = req.body; // <-- RECIBIR URL
+  const { nombre, descripcion, opcuaUrl, limiteReprocesos } = req.body; // <-- RECIBIR URL
   if (!nombre?.trim())
     return res.status(400).json({ message: "Nombre obligatorio." });
 
@@ -61,6 +61,7 @@ export const createLinea = async (req: Request, res: Response) => {
         nombre: nombre.trim(),
         descripcion: descripcion?.trim() || null,
         opcuaUrl: opcuaUrl?.trim() || null, // <-- GUARDAR URL
+        limiteReprocesos: limiteReprocesos ? parseInt(limiteReprocesos) : 3, // Usa 3 si no envían nada
       },
     });
     res.status(201).json(nuevaLinea);
@@ -247,7 +248,7 @@ export const createParametroParaEstacion = async (
 // ========================================================================
 export const updateLinea = async (req: Request, res: Response) => {
   const id = parseInt(req.params.id);
-  const { nombre, descripcion, opcuaUrl } = req.body; // <-- RECIBIR URL
+  const { nombre, descripcion, opcuaUrl, limiteReprocesos } = req.body; // <-- RECIBIR URL
   if (isNaN(id)) return res.status(400).json({ message: "ID inválido." });
 
   try {
@@ -256,6 +257,11 @@ export const updateLinea = async (req: Request, res: Response) => {
     if (descripcion !== undefined)
       data.descripcion = descripcion?.trim() || null;
     if (opcuaUrl !== undefined) data.opcuaUrl = opcuaUrl?.trim() || null; // <-- GUARDAR URL
+
+    // 2. AGREGA ESTE BLOQUE PARA GUARDARLO
+    if (limiteReprocesos !== undefined) {
+      data.limiteReprocesos = parseInt(limiteReprocesos);
+    }
 
     const updated = await prisma.lineaProduccion.update({
       where: { id },

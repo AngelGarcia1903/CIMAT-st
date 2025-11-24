@@ -190,8 +190,8 @@ const RegistroManualPage: React.FC = () => {
   // --- Renderizado ---
   return (
     <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
       className="p-1 max-w-3xl mx-auto"
     >
       <h1 className="text-3xl font-bold mb-6 text-gray-800 dark:text-gray-200">

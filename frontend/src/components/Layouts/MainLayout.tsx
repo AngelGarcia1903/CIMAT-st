@@ -128,7 +128,19 @@ const MainLayout: React.FC = () => {
     },
     onSuccess: (_data, variables) => {
       toast.success(`${variables.type} actualizado.`);
+
+      // 1. Actualizar el Árbol del Sidebar (Siempre)
       queryClient.invalidateQueries({ queryKey: ["lineas"] });
+
+      // 2. Sincronización Bidireccional:
+      // Si editamos una LÍNEA desde el modal, invalidamos también su vista de detalle
+      // por si el usuario tiene abierta la página "/lineas/:id/editar" de fondo.
+      if (variables.type === "linea") {
+        queryClient.invalidateQueries({
+          queryKey: ["lineaDetails", variables.id.toString()],
+        });
+      }
+
       setEditModal({ isOpen: false, item: null });
     },
     onError: (error: any, variables) => {

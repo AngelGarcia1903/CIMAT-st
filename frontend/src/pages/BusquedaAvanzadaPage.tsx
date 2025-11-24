@@ -25,6 +25,10 @@ interface RegistroHistorial {
   resultado: string;
   producto: {
     numeroSerie: string;
+    // --- AGREGAR ESTOS DOS ---
+    estado: string;
+    conteoReprocesos: number;
+    // -------------------------
     lote: {
       nombre: string;
       linea: {
@@ -55,7 +59,7 @@ const RegistroCard: React.FC<{ registro: RegistroHistorial }> = ({
 }) => {
   const { producto, estacion, parametro, fecha, valorReportado, resultado } =
     registro;
-  const { lote, numeroSerie } = producto;
+  const { lote, numeroSerie, estado, conteoReprocesos } = producto;
   const isOK = resultado === "OK";
 
   return (
@@ -77,6 +81,41 @@ const RegistroCard: React.FC<{ registro: RegistroHistorial }> = ({
         >
           {resultado}
         </span>
+      </div>
+
+      <div className="flex justify-between items-center bg-gray-50 dark:bg-gray-700/50 p-2 rounded">
+        <div className="text-xs">
+          <span className="text-gray-500 dark:text-gray-400 block">
+            Estado:
+          </span>
+          <span
+            className={`font-bold ${
+              estado === "COMPLETADO"
+                ? "text-green-600"
+                : estado === "DESCARTADO"
+                ? "text-red-600"
+                : estado === "REPROCESO"
+                ? "text-yellow-600"
+                : "text-blue-600"
+            }`}
+          >
+            {estado}
+          </span>
+        </div>
+        <div className="text-xs text-right">
+          <span className="text-gray-500 dark:text-gray-400 block">
+            Reprocesos:
+          </span>
+          <span
+            className={`font-bold ${
+              estado === "DESCARTADO"
+                ? "text-red-600"
+                : "text-gray-800 dark:text-gray-200"
+            }`}
+          >
+            {conteoReprocesos}
+          </span>
+        </div>
       </div>
 
       {/* Cuerpo: Info de Contexto */}
@@ -149,6 +188,13 @@ const ResultadosTabla: React.FC<{ registros: RegistroHistorial[] }> = ({
               <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                 Parámetro
               </th>
+              {/* --- NUEVAS COLUMNAS --- */}
+              <th className="py-3 px-4 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                Reprocesos
+              </th>
+              <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                Estado
+              </th>
               <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                 Valor
               </th>
@@ -181,6 +227,36 @@ const ResultadosTabla: React.FC<{ registros: RegistroHistorial[] }> = ({
                 </td>
                 <td className="py-3 px-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-200">
                   {reg.estacion.nombreEstacion}
+                </td>
+                {/* --- NUEVAS CELDAS --- */}
+                {/* 1. Columna Reprocesos */}
+                <td className="py-3 px-4 whitespace-nowrap text-center text-sm">
+                  <span
+                    className={`font-bold ${
+                      reg.producto.estado === "DESCARTADO"
+                        ? "text-red-600 dark:text-red-400"
+                        : "text-gray-700 dark:text-gray-300"
+                    }`}
+                  >
+                    {reg.producto.conteoReprocesos}
+                  </span>
+                </td>
+
+                {/* 2. Columna Estado */}
+                <td className="py-3 px-4 whitespace-nowrap">
+                  <span
+                    className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                      reg.producto.estado === "COMPLETADO"
+                        ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
+                        : reg.producto.estado === "DESCARTADO"
+                        ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300"
+                        : reg.producto.estado === "REPROCESO"
+                        ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300"
+                        : "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300"
+                    }`}
+                  >
+                    {reg.producto.estado}
+                  </span>
                 </td>
                 <td className="py-3 px-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-200">
                   {reg.parametro.nombreParametro}
@@ -464,10 +540,10 @@ const BusquedaAvanzadaPage: React.FC = () => {
               className="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="todos">Todos los Estados</option>
-              <option value="completado">Completado</option>
+              <option value="COMPLETADO">Completado</option>
               <option value="REPROCESO">Reproceso</option>
-              <option value="descartado">Descartado</option>
-              <option value="en_proceso">En Proceso</option>
+              <option value="DESCARTADO">Descartado</option>
+              <option value="EN_PROCESO">En Proceso</option>
             </select>
           </div>
 

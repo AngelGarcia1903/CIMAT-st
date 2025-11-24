@@ -16,6 +16,7 @@ CREATE TABLE `lineas_produccion` (
     `descripcion` VARCHAR(191) NULL,
     `opcua_url` VARCHAR(191) NULL,
     `fecha_creacion` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `limite_reprocesos` INTEGER NOT NULL DEFAULT 3,
 
     UNIQUE INDEX `lineas_produccion_nombre_key`(`nombre`),
     PRIMARY KEY (`id_linea`)
@@ -67,6 +68,7 @@ CREATE TABLE `productos` (
     `id_lote` INTEGER NOT NULL,
     `numero_serie` VARCHAR(191) NOT NULL,
     `estado` ENUM('EN_PROCESO', 'COMPLETADO', 'DESCARTADO', 'REPROCESO') NOT NULL DEFAULT 'EN_PROCESO',
+    `conteo_reprocesos` INTEGER NOT NULL DEFAULT 0,
 
     UNIQUE INDEX `productos_numero_serie_key`(`numero_serie`),
     PRIMARY KEY (`id_producto`)
