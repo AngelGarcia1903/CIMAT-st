@@ -177,6 +177,14 @@ const SearchResults: React.FC<{
                         >
                           ({param.resultado})
                         </span>
+
+                        {/* --- NUEVO: Razón de Falla --- */}
+                        {param.resultado === "NO_OK" && (
+                          <span className="block text-xs text-red-500 font-medium ml-4 mt-0.5">
+                            ↳ Fallo: Valor fuera del rango o criterio
+                            establecido.
+                          </span>
+                        )}
                       </li>
                     ))}
                   </ul>

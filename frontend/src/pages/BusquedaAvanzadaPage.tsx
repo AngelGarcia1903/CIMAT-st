@@ -16,6 +16,7 @@ import {
   FaHistory,
 } from "react-icons/fa"; // Importar FaTimes y FaHistory
 import toast from "react-hot-toast";
+import HistorialFallasModal from "../components/common/HistorialFallasModal";
 
 // --- Tipos de Datos (Completos) ---
 interface RegistroHistorial {
@@ -24,8 +25,8 @@ interface RegistroHistorial {
   valorReportado: string | null;
   resultado: string;
   producto: {
+    id: number;
     numeroSerie: string;
-    // --- AGREGAR ESTOS DOS ---
     estado: string;
     conteoReprocesos: number;
     // -------------------------
@@ -81,6 +82,14 @@ const RegistroCard: React.FC<{ registro: RegistroHistorial }> = ({
         >
           {resultado}
         </span>
+
+        {/* --- NUEVO: Razón de Falla (Móvil) --- */}
+        {!isOK && (
+          <p className="text-[10px] text-red-500 font-medium mt-1">
+            Fallo: Fuera de rango
+          </p>
+        )}
+        {/* ------------------------------------- */}
       </div>
 
       <div className="flex justify-between items-center bg-gray-50 dark:bg-gray-700/50 p-2 rounded">
@@ -160,46 +169,51 @@ const RegistroCard: React.FC<{ registro: RegistroHistorial }> = ({
 // ========================================================================
 // Componente de Tabla de Resultados (Refactorizado)
 // ========================================================================
-const ResultadosTabla: React.FC<{ registros: RegistroHistorial[] }> = ({
-  registros,
-}) => {
+// ========================================================================
+// Componente de Tabla de Resultados (CORREGIDO)
+// ========================================================================
+const ResultadosTabla: React.FC<{
+  registros: RegistroHistorial[];
+  onVerFallas: (id: number, serie: string) => void;
+}> = ({ registros, onVerFallas }) => {
   return (
     <>
-      {/* 1. VISTA DE TABLA (Solo para pantallas medianas y grandes) */}
+      {/* 1. VISTA DE TABLA (Escritorio) */}
       <div className="hidden md:block overflow-x-auto shadow-md rounded-lg mt-6 border dark:border-gray-700">
         <table className="min-w-full bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
           <thead className="bg-gray-100 dark:bg-gray-700">
             <tr>
+              {/* 1. Fecha */}
               <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                 Fecha
               </th>
+              {/* 2. Serie */}
               <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                 N° Serie
               </th>
-              <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                Línea
-              </th>
-              <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                Lote
-              </th>
+              {/* 3. Estación */}
               <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                 Estación
               </th>
+              {/* 4. Parámetro (ANTES ESTABA MOVIDO) */}
               <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                 Parámetro
               </th>
-              {/* --- NUEVAS COLUMNAS --- */}
-              <th className="py-3 px-4 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                Reprocesos
-              </th>
-              <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                Estado
-              </th>
+              {/* 5. Valor */}
               <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                 Valor
               </th>
+              {/* 6. Resultado (OK/NO_OK) */}
               <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                 Resultado
+              </th>
+              {/* 7. Reprocesos (NUEVO) */}
+              <th className="py-3 px-4 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                Reprocesos
+              </th>
+              {/* 8. Estado Actual (NUEVO) */}
+              <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                Estado Actual
               </th>
             </tr>
           </thead>
@@ -209,40 +223,91 @@ const ResultadosTabla: React.FC<{ registros: RegistroHistorial[] }> = ({
                 key={reg.id}
                 className="hover:bg-gray-50 dark:hover:bg-gray-700/50"
               >
+                {/* 1. Fecha */}
                 <td className="py-3 px-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
                   {new Date(reg.fecha).toLocaleString()}
                 </td>
+                {/* 2. Serie (Con Lote y Línea en tooltip) */}
                 <td className="py-3 px-4 whitespace-nowrap font-mono text-sm font-medium text-gray-900 dark:text-white">
-                  {reg.producto.numeroSerie}
+                  <div className="flex flex-col">
+                    <span>{reg.producto.numeroSerie}</span>
+                    <span className="text-[10px] text-gray-400">
+                      {reg.producto.lote.nombre}
+                    </span>
+                  </div>
                 </td>
-                <td className="py-3 px-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-200">
-                  {reg.producto.lote.linea.nombre}
-                </td>
-                <td
-                  className="py-3 px-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-200 truncate"
-                  title={reg.producto.lote.nombre}
-                  style={{ maxWidth: "200px" }}
-                >
-                  {reg.producto.lote.nombre}
-                </td>
+                {/* 3. Estación */}
                 <td className="py-3 px-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-200">
                   {reg.estacion.nombreEstacion}
                 </td>
-                {/* --- NUEVAS CELDAS --- */}
-                {/* 1. Columna Reprocesos */}
-                <td className="py-3 px-4 whitespace-nowrap text-center text-sm">
+                {/* 4. Parámetro (AHORA SÍ COINCIDE) */}
+                <td className="py-3 px-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-200">
+                  {reg.parametro.nombreParametro}
+                </td>
+                {/* 5. Valor */}
+                <td className="py-3 px-4 whitespace-nowrap text-sm font-mono text-gray-900 dark:text-white">
+                  {reg.valorReportado ?? "-"}
+                </td>
+                {/* 6. Resultado (Con razón de falla) */}
+                <td className="py-3 px-4 whitespace-nowrap">
                   <span
-                    className={`font-bold ${
-                      reg.producto.estado === "DESCARTADO"
-                        ? "text-red-600 dark:text-red-400"
-                        : "text-gray-700 dark:text-gray-300"
+                    className={`font-semibold text-xs px-2 py-1 rounded-full ${
+                      reg.resultado === "OK"
+                        ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
+                        : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300"
                     }`}
                   >
-                    {reg.producto.conteoReprocesos}
+                    {reg.resultado}
                   </span>
+                  {/* Mensaje de error si NO_OK */}
+                  {reg.resultado === "NO_OK" && (
+                    <div className="text-[10px] text-red-500 mt-1 font-medium max-w-[150px] whitespace-normal leading-tight">
+                      ↳ Fuera de rango
+                    </div>
+                  )}
                 </td>
+                {/* 7. Reprocesos (LÓGICA REFINADA) */}
+                <td className="py-3 px-4 whitespace-nowrap text-center text-sm">
+                  {(() => {
+                    const { estado, conteoReprocesos } = reg.producto;
 
-                {/* 2. Columna Estado */}
+                    // Lógica de visualización del Modal:
+                    // Se muestra si hay una falla activa (REPROCESO), una falla fatal (DESCARTADO)
+                    // o si hay historial de fallas previas (conteo > 0).
+                    const tieneFallas =
+                      estado === "REPROCESO" ||
+                      estado === "DESCARTADO" ||
+                      conteoReprocesos > 0;
+
+                    return (
+                      <span
+                        onClick={() => {
+                          if (tieneFallas) {
+                            onVerFallas(
+                              reg.producto.id,
+                              reg.producto.numeroSerie
+                            );
+                          }
+                        }}
+                        className={`font-bold transition-colors duration-200 ${
+                          estado === "DESCARTADO"
+                            ? "text-red-600 dark:text-red-400"
+                            : "text-gray-700 dark:text-gray-300"
+                        } ${
+                          tieneFallas
+                            ? "cursor-pointer hover:text-blue-600 hover:underline decoration-blue-500 decoration-2 underline-offset-2"
+                            : "cursor-default"
+                        }`}
+                        title={
+                          tieneFallas ? "Ver historial de fallas" : "Sin fallas"
+                        }
+                      >
+                        {conteoReprocesos}
+                      </span>
+                    );
+                  })()}
+                </td>
+                {/* 8. Estado Actual (Badge) */}
                 <td className="py-3 px-4 whitespace-nowrap">
                   <span
                     className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
@@ -258,30 +323,13 @@ const ResultadosTabla: React.FC<{ registros: RegistroHistorial[] }> = ({
                     {reg.producto.estado}
                   </span>
                 </td>
-                <td className="py-3 px-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-200">
-                  {reg.parametro.nombreParametro}
-                </td>
-                <td className="py-3 px-4 whitespace-nowrap text-sm font-mono text-gray-900 dark:text-white">
-                  {reg.valorReportado ?? "-"}
-                </td>
-                <td className="py-3 px-4 whitespace-nowrap">
-                  <span
-                    className={`font-semibold text-xs ${
-                      reg.resultado === "OK"
-                        ? "text-green-600 dark:text-green-400"
-                        : "text-red-600 dark:text-red-400"
-                    }`}
-                  >
-                    {reg.resultado}
-                  </span>
-                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
 
-      {/* 2. VISTA DE TARJETAS (Solo para pantallas pequeñas, 'md' rompe a tabla) */}
+      {/* 2. VISTA DE TARJETAS (Móvil - Sin cambios mayores, solo asegurar datos) */}
       <div className="block md:hidden space-y-4 mt-6">
         {registros.map((reg) => (
           <RegistroCard key={reg.id} registro={reg} />
@@ -311,6 +359,19 @@ const BusquedaAvanzadaPage: React.FC = () => {
   const [resultados, setResultados] = useState<RegistroHistorial[] | null>(
     null
   );
+
+  // --- NUEVOS ESTADOS PARA EL MODAL ---
+  const [fallasModalOpen, setFallasModalOpen] = useState(false);
+  const [productoSeleccionado, setProductoSeleccionado] = useState<{
+    id: number;
+    serie: string;
+  } | null>(null);
+
+  // --- NUEVO MANEJADOR ---
+  const handleVerFallas = (id: number, serie: string) => {
+    setProductoSeleccionado({ id, serie });
+    setFallasModalOpen(true);
+  };
 
   // Query para poblar el desplegable de Líneas
   const { data: lineas, isLoading: isLoadingLineas } = useQuery<LineaSimple[]>({
@@ -698,10 +759,22 @@ const BusquedaAvanzadaPage: React.FC = () => {
             exit={{ opacity: 0 }}
           >
             {/* Componente ResumenBusqueda eliminado */}
-            <ResultadosTabla registros={resultados} />
+            <ResultadosTabla
+              registros={resultados}
+              onVerFallas={handleVerFallas}
+            />
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* --- RENDERIZAR EL MODAL AL FINAL --- */}
+      <HistorialFallasModal
+        isOpen={fallasModalOpen}
+        onClose={() => setFallasModalOpen(false)}
+        productoId={productoSeleccionado?.id || null}
+        numeroSerie={productoSeleccionado?.serie || ""}
+      />
+      {/* ---------------------------------- */}
     </motion.div>
   );
 };

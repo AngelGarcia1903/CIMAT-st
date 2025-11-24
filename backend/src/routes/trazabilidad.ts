@@ -2,7 +2,8 @@ import { Router } from "express";
 // 👇 1. Importar ambas funciones del controlador
 import {
   buscarRegistros,
-  getFechasDisponibles, // <-- Función añadida
+  getFechasDisponibles,
+  getFallasPorProducto, // <-- Función añadida
 } from "../controllers/trazabilidadController";
 import authMiddleware from "../middlewares/authMiddleware";
 
@@ -18,4 +19,6 @@ router.get("/buscar", buscarRegistros);
 //  2. NUEVA RUTA: Ruta GET para obtener los años/meses con registros
 router.get("/fechas-disponibles", getFechasDisponibles);
 
+// NUEVA RUTA: Obtener historial de fallas de un producto específico
+router.get("/fallas/:productoId", getFallasPorProducto);
 export default router;

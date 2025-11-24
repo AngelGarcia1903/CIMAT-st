@@ -148,3 +148,42 @@ export const getFechasDisponibles = async (req: Request, res: Response) => {
     res.status(500).json({ message: "Error en el servidor." });
   }
 };
+
+// ========================================================================
+// GET - Obtener Historial de Fallas de un Producto (Para el Modal)
+// ========================================================================
+export const getFallasPorProducto = async (req: Request, res: Response) => {
+  const productoId = parseInt(req.params.productoId);
+  if (isNaN(productoId))
+    return res.status(400).json({ message: "ID de producto inválido." });
+
+  try {
+    const fallas = await prisma.registro.findMany({
+      where: {
+        productoId: productoId,
+        resultado: "NO_OK", // <--- EL FILTRO CLAVE
+      },
+      include: {
+        estacion: { select: { nombreEstacion: true } },
+        parametro: {
+          select: {
+            nombreParametro: true,
+            valorMin: true,
+            valorMax: true,
+            valorBooleanoOK: true,
+          },
+        },
+      },
+      orderBy: {
+        fecha: "desc",
+      },
+    });
+
+    res.status(200).json(fallas);
+  } catch (error) {
+    console.error("Error al obtener fallas:", error);
+    res
+      .status(500)
+      .json({ message: "Error al obtener el historial de fallas." });
+  }
+};

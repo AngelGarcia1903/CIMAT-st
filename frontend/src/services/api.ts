@@ -254,5 +254,15 @@ export const registrarPasoManual = async (data: {
   return response.data;
 };
 
+// ...
+
+// Función para obtener el detalle de fallas (Para el Modal de Historial)
+// Función para obtener el detalle de fallas (Para el Modal de Historial)
+export const getFallasProducto = async (productoId: number) => {
+  // CORRECTO:
+  const response = await api.get(`/trazabilidad/fallas/${productoId}`);
+  return response.data;
+};
+
 // Exportar la instancia configurada
 export default api;
