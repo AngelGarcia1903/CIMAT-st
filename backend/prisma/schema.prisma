@@ -1,0 +1,146 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Usuario {
+  id       Int    @id @default(autoincrement())
+  username String @unique
+  password String
+  rol      Rol    @default(operador)
+
+  @@map("usuarios")
+}
+
+model LineaProduccion {
+  id          Int      @id @default(autoincrement()) @map("id_linea")
+  nombre      String   @unique
+  descripcion String?
+  opcuaUrl    String?  @map("opcua_url")
+  fecha       DateTime @default(now()) @map("fecha_creacion")
+
+  lotes      Lote[]
+  estaciones Estacion[]
+
+  @@map("lineas_produccion")
+}
+
+model Lote {
+  id      Int      @id @default(autoincrement()) @map("id_lote")
+  nombre  String   @unique @map("nombre_lote")
+  lineaId Int      @map("id_linea")
+  estado  EstadoLote @default(PENDIENTE)
+  fecha   DateTime @default(now()) @map("fecha_creacion")
+
+  linea     LineaProduccion @relation(fields: [lineaId], references: [id], onDelete: Cascade) // <-- Ya lo tenías
+  productos Producto[] // Los productos se borrarán en cascada (definido en Producto)
+
+  @@map("lotes")
+}
+
+model Estacion {
+  id             Int      @id @default(autoincrement()) @map("id_estacion")
+  lineaId        Int      @map("id_linea")
+  nombreEstacion String   @map("nombre_estacion")
+  orden          Int
+
+  triggerNodeId  String?  @map("trigger_node_id")
+  serieNodeId    String?  @map("serie_node_id")
+
+  linea      LineaProduccion @relation(fields: [lineaId], references: [id], onDelete: Cascade) // <-- Ya lo tenías
+  parametros Parametro[] // Los parámetros se borrarán en cascada (definido en Parametro)
+  registros  Registro[] // Los registros se borrarán en cascada (definido en Registro)
+
+  @@unique([lineaId, nombreEstacion], name: "linea_estacion_unique")
+  @@map("estaciones")
+}
+
+model Parametro {
+  id              Int           @id @default(autoincrement()) @map("id_parametro")
+  estacionId      Int           @map("id_estacion")
+  nombreParametro String        @map("nombre_parametro")
+  tipo            TipoParametro
+  direccionOpcUa  String        @unique @map("direccion_opc_ua")
+  valorMin        Decimal?      @map("valor_min") @db.Decimal(10, 2)
+  valorMax        Decimal?      @map("valor_max") @db.Decimal(10, 2)
+  valorBooleanoOK Boolean?      @map("valor_booleano_ok")
+
+  // --- ¡CORRECCIÓN AQUÍ! ---
+  estacion Estacion @relation(fields: [estacionId], references: [id], onDelete: Cascade)
+  registros Registro[] // Los registros se borrarán en cascada (definido en Registro)
+
+  @@map("parametros")
+}
+
+model Producto {
+  id          Int            @id @default(autoincrement()) @map("id_producto")
+  loteId      Int            @map("id_lote")
+  numeroSerie String         @unique @map("numero_serie")
+  estado      EstadoProducto @default(EN_PROCESO)
+
+  // --- ¡CORRECCIÓN AQUÍ! ---
+  lote      Lote     @relation(fields: [loteId], references: [id], onDelete: Cascade)
+  registros Registro[] // Los registros se borrarán en cascada (definido en Registro)
+
+  @@map("productos")
+}
+
+model Registro {
+  id             Int               @id @default(autoincrement()) @map("id_registro")
+  productoId     Int               @map("id_producto")
+  estacionId     Int               @map("id_estacion")
+  parametroId    Int               @map("id_parametro")
+  valorReportado String?           @map("valor_reportado")
+  resultado      ResultadoRegistro
+  fecha          DateTime          @default(now())
+  año            Int
+  mes            Int
+  dia            Int
+
+  // --- ¡CORRECCIÓN AQUÍ! ---
+  // Estas relaciones son las que impiden que los padres se borren.
+  // Ahora, si un Producto, Estacion o Parametro se borra, este registro también.
+  producto  Producto  @relation(fields: [productoId], references: [id], onDelete: Cascade)
+  estacion  Estacion  @relation(fields: [estacionId], references: [id], onDelete: Cascade)
+  parametro Parametro @relation(fields: [parametroId], references: [id], onDelete: Cascade)
+  // --- FIN CORRECCIÓN ---
+
+  @@index([productoId])
+  @@index([estacionId])
+  @@index([año, mes, dia])
+
+  @@map("registros")
+}
+
+// --- Enums (Sin cambios) ---
+enum Rol {
+  superadmin
+  admin
+  operador
+}
+enum TipoParametro {
+  numerico
+  texto
+  booleano
+}
+enum EstadoProducto {
+  EN_PROCESO
+  COMPLETADO
+  DESCARTADO
+  REPROCESO
+}
+enum ResultadoRegistro {
+  OK
+  NO_OK
+  REPROCESO
+  DESCARTADO
+}
+enum EstadoLote {
+  PENDIENTE
+  ACTIVO
+  FINALIZADO
+}
