@@ -322,10 +322,8 @@ function setupStationMonitoring(
 }
 
 /**
- * El "Cerebro" V5 (Lógica Corregida de Ciclos de Reproceso)
- */
-/**
- * El "Cerebro" V5 (Lógica Corregida: Estado EN_PROCESO mandatorio)
+ * El "Cerebro" V5 (Lógica Corregida: Estado EN_PROCESO mandatorio
+ *  y Lógica Corregida de Ciclos de Reproceso)
  */
 async function actualizarEstadoProducto(
   productoId: number,
