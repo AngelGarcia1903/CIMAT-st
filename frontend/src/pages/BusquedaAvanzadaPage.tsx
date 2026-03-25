@@ -14,6 +14,10 @@ import {
   FaFileAlt,
   FaTimes,
   FaHistory,
+  // --- Agrega los iconos de flecha para el efecto de colapsar/expandir. ---
+  FaChevronDown,
+  FaChevronUp,
+  FaCheck,
 } from "react-icons/fa"; // Importar FaTimes y FaHistory
 import toast from "react-hot-toast";
 import HistorialFallasModal from "../components/common/HistorialFallasModal";
@@ -49,119 +53,160 @@ interface LineaSimple {
 }
 type FechasMap = Record<number, number[]>;
 
+// --- Helper para Agrupar Registros (Vista Móvil) ---
+interface GrupoEstacion {
+  key: string;
+  nombreEstacion: string;
+  fecha: string;
+  producto: RegistroHistorial["producto"];
+  lote: RegistroHistorial["producto"]["lote"];
+  registros: RegistroHistorial[];
+}
+
+const agruparPorEstacion = (
+  registros: RegistroHistorial[],
+): GrupoEstacion[] => {
+  const grupos: Record<string, GrupoEstacion> = {};
+
+  registros.forEach((reg) => {
+    // Clave única: Serie + Estación + Fecha exacta (para separar pasadas diferentes)
+    const key = `${reg.producto.numeroSerie}-${reg.estacion.nombreEstacion}-${reg.fecha}`;
+
+    if (!grupos[key]) {
+      grupos[key] = {
+        key,
+        nombreEstacion: reg.estacion.nombreEstacion,
+        fecha: reg.fecha,
+        producto: reg.producto,
+        lote: reg.producto.lote,
+        registros: [],
+      };
+    }
+    grupos[key].registros.push(reg);
+  });
+
+  // Convertir objeto a array
+  return Object.values(grupos);
+};
+
 // Interfaces de Búsqueda de Trazabilidad (No usadas directamente por esta página, pero relacionadas)
 
-// --- Fin Tipos ---
 // ========================================================================
-// Componente de Tarjeta Individual (para Móvil) - ¡NUEVO!
+// Componente de Tarjeta Agrupada (Acordeón) - REFACTORIZACIÓN 7
 // ========================================================================
-const RegistroCard: React.FC<{ registro: RegistroHistorial }> = ({
-  registro,
-}) => {
-  const { producto, estacion, parametro, fecha, valorReportado, resultado } =
-    registro;
-  const { lote, numeroSerie, estado, conteoReprocesos } = producto;
-  const isOK = resultado === "OK";
+const EstacionCard: React.FC<{ grupo: GrupoEstacion }> = ({ grupo }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const { nombreEstacion, fecha, producto, lote, registros } = grupo;
+
+  // Detectar si hubo algún fallo en esta estación
+  const tieneFallo = registros.some((r) => r.resultado === "NO_OK");
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow border dark:border-gray-700 p-4 space-y-3">
-      {/* Encabezado: N° Serie y Resultado */}
-      <div className="flex justify-between items-center pb-2 border-b dark:border-gray-600">
-        <span
-          className="font-mono font-bold text-base text-blue-600 dark:text-blue-400 truncate"
-          title={numeroSerie}
-        >
-          {numeroSerie}
-        </span>
-        <span
-          className={`font-semibold text-xs px-2 py-0.5 rounded-full ${
-            isOK
-              ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
-              : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300"
-          }`}
-        >
-          {resultado}
-        </span>
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow border dark:border-gray-700 overflow-hidden">
+      {/* --- CABECERA (Siempre visible) --- */}
+      <div
+        onClick={() => setIsOpen(!isOpen)}
+        className="p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+      >
+        <div className="flex justify-between items-start">
+          <div>
+            {/* Serie y Estado */}
+            <div className="flex items-center gap-2 mb-1">
+              <span className="font-mono font-bold text-blue-600 dark:text-blue-400 text-lg">
+                {producto.numeroSerie}
+              </span>
+              <span
+                className={`px-2 py-0.5 text-[10px] font-bold rounded-full border ${
+                  producto.estado === "COMPLETADO"
+                    ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
+                    : producto.estado === "DESCARTADO"
+                      ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300"
+                      : producto.estado === "REPROCESO"
+                        ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300"
+                        : producto.estado === "EN_PROCESO"
+                          ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300"
+                          : ""
+                }`}
+              >
+                {producto.estado}
+              </span>
+            </div>
 
-        {/* --- NUEVO: Razón de Falla (Móvil) --- */}
-        {!isOK && (
-          <p className="text-[10px] text-red-500 font-medium mt-1">
-            Fallo: Fuera de rango
-          </p>
+            {/* Título Estación */}
+            <h3 className="font-semibold text-gray-900 dark:text-white text-base">
+              {nombreEstacion}
+            </h3>
+
+            {/* Fecha y Lote */}
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              {new Date(fecha).toLocaleString()} • {lote.nombre}
+            </p>
+          </div>
+
+          {/* Indicador Visual Derecha */}
+          <div className="flex flex-col items-end gap-2">
+            {tieneFallo ? (
+              <span className="flex items-center gap-1 text-xs font-bold text-red-600 bg-red-100 px-2 py-1 rounded">
+                <FaTimes /> Fallo
+              </span>
+            ) : (
+              <span className="flex items-center gap-1 text-xs font-bold text-green-600 bg-green-100 px-2 py-1 rounded">
+                <FaCheck /> OK
+              </span>
+            )}
+            <div className="text-gray-400 mt-1">
+              {isOpen ? <FaChevronUp /> : <FaChevronDown />}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* --- CUERPO DESPLEGABLE (Parámetros) --- */}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="border-t dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30"
+          >
+            <div className="p-4 space-y-3">
+              {registros.map((reg) => (
+                <div
+                  key={reg.id}
+                  className="flex justify-between items-start text-sm border-b border-gray-200 dark:border-gray-700 pb-2 last:border-0 last:pb-0"
+                >
+                  <div>
+                    <span className="block font-medium text-gray-700 dark:text-gray-300">
+                      {reg.parametro.nombreParametro}
+                    </span>
+                    {/* Razón de Fallo */}
+                    {reg.resultado === "NO_OK" && (
+                      <span className="text-xs text-red-500 font-medium block mt-0.5">
+                        ↳ Fuera de rango
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    <span className="block font-mono font-bold text-gray-800 dark:text-gray-200">
+                      {reg.valorReportado ?? "-"}
+                    </span>
+                    <span
+                      className={`text-[10px] font-bold ${
+                        reg.resultado === "OK"
+                          ? "text-green-600"
+                          : "text-red-600"
+                      }`}
+                    >
+                      {reg.resultado}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </motion.div>
         )}
-        {/* ------------------------------------- */}
-      </div>
-
-      <div className="flex justify-between items-center bg-gray-50 dark:bg-gray-700/50 p-2 rounded">
-        <div className="text-xs">
-          <span className="text-gray-500 dark:text-gray-400 block">
-            Estado:
-          </span>
-          <span
-            className={`font-bold ${
-              estado === "COMPLETADO"
-                ? "text-green-600"
-                : estado === "DESCARTADO"
-                ? "text-red-600"
-                : estado === "REPROCESO"
-                ? "text-yellow-600"
-                : "text-blue-600"
-            }`}
-          >
-            {estado}
-          </span>
-        </div>
-        <div className="text-xs text-right">
-          <span className="text-gray-500 dark:text-gray-400 block">
-            Reprocesos:
-          </span>
-          <span
-            className={`font-bold ${
-              estado === "DESCARTADO"
-                ? "text-red-600"
-                : "text-gray-800 dark:text-gray-200"
-            }`}
-          >
-            {conteoReprocesos}
-          </span>
-        </div>
-      </div>
-
-      {/* Cuerpo: Info de Contexto */}
-      <div className="grid grid-cols-3 gap-x-2 gap-y-1 text-sm">
-        <span className="text-gray-500 dark:text-gray-400">Línea:</span>
-        <span className="col-span-2 font-medium text-gray-900 dark:text-gray-100 truncate">
-          {lote.linea.nombre}
-        </span>
-
-        <span className="text-gray-500 dark:text-gray-400">Lote:</span>
-        <span
-          className="col-span-2 font-medium text-gray-900 dark:text-gray-100 truncate"
-          title={lote.nombre}
-        >
-          {lote.nombre}
-        </span>
-
-        <span className="text-gray-500 dark:text-gray-400">Estación:</span>
-        <span className="col-span-2 font-medium text-gray-900 dark:text-gray-100">
-          {estacion.nombreEstacion}
-        </span>
-      </div>
-
-      {/* Parámetro */}
-      <div className="pt-2 border-t dark:border-gray-600">
-        <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">
-          {parametro.nombreParametro}
-        </span>
-        <p className="font-mono text-lg text-gray-900 dark:text-white">
-          {valorReportado ?? "-"}
-        </p>
-      </div>
-
-      {/* Pie: Fecha */}
-      <div className="text-xs text-gray-400 dark:text-gray-500 pt-2 text-right">
-        {new Date(fecha).toLocaleString()}
-      </div>
+      </AnimatePresence>
     </div>
   );
 };
@@ -176,6 +221,8 @@ const ResultadosTabla: React.FC<{
   registros: RegistroHistorial[];
   onVerFallas: (id: number, serie: string) => void;
 }> = ({ registros, onVerFallas }) => {
+  // 1. Agrupar datos para la vista móvil
+  const gruposMovil = useMemo(() => agruparPorEstacion(registros), [registros]);
   return (
     <>
       {/* 1. VISTA DE TABLA (Escritorio) */}
@@ -285,7 +332,7 @@ const ResultadosTabla: React.FC<{
                           if (tieneFallas) {
                             onVerFallas(
                               reg.producto.id,
-                              reg.producto.numeroSerie
+                              reg.producto.numeroSerie,
                             );
                           }
                         }}
@@ -314,10 +361,10 @@ const ResultadosTabla: React.FC<{
                       reg.producto.estado === "COMPLETADO"
                         ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
                         : reg.producto.estado === "DESCARTADO"
-                        ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300"
-                        : reg.producto.estado === "REPROCESO"
-                        ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300"
-                        : "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300"
+                          ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300"
+                          : reg.producto.estado === "REPROCESO"
+                            ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300"
+                            : "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300"
                     }`}
                   >
                     {reg.producto.estado}
@@ -329,10 +376,10 @@ const ResultadosTabla: React.FC<{
         </table>
       </div>
 
-      {/* 2. VISTA DE TARJETAS (Móvil - Sin cambios mayores, solo asegurar datos) */}
+      {/* 2. VISTA DE TARJETAS (Móvil) - ¡CAMBIO AQUÍ! */}
       <div className="block md:hidden space-y-4 mt-6">
-        {registros.map((reg) => (
-          <RegistroCard key={reg.id} registro={reg} />
+        {gruposMovil.map((grupo) => (
+          <EstacionCard key={grupo.key} grupo={grupo} />
         ))}
       </div>
     </>
@@ -357,7 +404,7 @@ const BusquedaAvanzadaPage: React.FC = () => {
   const [estado, setEstado] = useState<string>("todos");
 
   const [resultados, setResultados] = useState<RegistroHistorial[] | null>(
-    null
+    null,
   );
 
   // --- NUEVOS ESTADOS PARA EL MODAL ---
@@ -404,14 +451,14 @@ const BusquedaAvanzadaPage: React.FC = () => {
       toast.error(
         `Error: ${
           error.response?.data?.message || "No se encontraron registros."
-        }`
+        }`,
       );
     },
   });
 
   // Manejador para actualizar el estado de los filtros
   const handleFilterChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
   ) => {
     const { name, value } = e.target;
 
@@ -487,7 +534,7 @@ const BusquedaAvanzadaPage: React.FC = () => {
             .map(Number)
             .sort((a, b) => b - a)
         : [],
-    [fechasDisponibles]
+    [fechasDisponibles],
   );
 
   const mesesDisponibles = useMemo(
@@ -495,7 +542,7 @@ const BusquedaAvanzadaPage: React.FC = () => {
       filtros.año && fechasDisponibles
         ? (fechasDisponibles[filtros.año] || []).sort((a, b) => a - b)
         : [],
-    [filtros.año, fechasDisponibles]
+    [filtros.año, fechasDisponibles],
   );
 
   const diasDisponibles = useMemo(
@@ -503,10 +550,10 @@ const BusquedaAvanzadaPage: React.FC = () => {
       filtros.año && filtros.mes
         ? Array.from(
             { length: getDaysInMonth(filtros.año, filtros.mes) },
-            (_, i) => i + 1
+            (_, i) => i + 1,
           )
         : [],
-    [filtros.año, filtros.mes]
+    [filtros.año, filtros.mes],
   );
   // --- Fin Opciones ---
 
@@ -699,7 +746,7 @@ const BusquedaAvanzadaPage: React.FC = () => {
             {(busquedaMutation.isSuccess ||
               busquedaMutation.isError ||
               Object.values(filtros).some(
-                (v) => v !== undefined && v !== ""
+                (v) => v !== undefined && v !== "",
               )) && (
               <button
                 type="button"

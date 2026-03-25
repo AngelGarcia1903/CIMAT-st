@@ -232,16 +232,6 @@ export const getFechasDisponibles = async () => {
   return response.data;
 };
 
-// Función para el Simulador
-export const simulateProductionStep = async (data: {
-  numeroSerie: string;
-  estacionId: number;
-  registrosParametros: { parametroId: number; valorReportado: string }[];
-}) => {
-  const response = await api.post("/produccion/registrar-paso", data);
-  return response.data;
-};
-
 // --- ¡NUEVO! Renombrar 'simulateProductionStep' para claridad ---
 // Esta función hace lo mismo pero se usa en 'RegistroManualPage'
 export const registrarPasoManual = async (data: {
@@ -250,7 +240,7 @@ export const registrarPasoManual = async (data: {
   registrosParametros: { parametroId: number; valorReportado: string }[];
 }) => {
   // Llama al mismo endpoint que usaba el simulador
-  const response = await api.post("/produccion/registro-manual", data);
+  const response = await api.post("/produccion/registrar-paso", data);
   return response.data;
 };
 

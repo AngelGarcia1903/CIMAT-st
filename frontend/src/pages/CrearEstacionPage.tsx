@@ -9,7 +9,7 @@ import {
 } from "../services/api";
 import toast from "react-hot-toast";
 import { FaPlus, FaTrashAlt, FaSave, FaInfoCircle } from "react-icons/fa";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import Modal from "../components/common/Modal";
 
 // --- Interfaces (Refactorizadas) ---
@@ -72,7 +72,7 @@ const CrearEstacionPage: React.FC = () => {
     mutationFn: createStation,
     onSuccess: (data) => {
       toast.success(
-        `Estación '${data.nombreEstacion}' y sus parámetros guardados.`
+        `Estación '${data.nombreEstacion}' y sus parámetros guardados.`,
       );
       queryClient.invalidateQueries({ queryKey: ["lineas"] });
       queryClient.invalidateQueries({ queryKey: ["lineDetails", lineaId] });
@@ -97,7 +97,7 @@ const CrearEstacionPage: React.FC = () => {
       toast.error(
         `Error al crear la estación: ${
           error.response?.data?.message || error.message
-        }`
+        }`,
       );
     },
   });
@@ -106,7 +106,7 @@ const CrearEstacionPage: React.FC = () => {
     mutationFn: createStationWithParameter,
     onSuccess: (newStation) => {
       toast.success(
-        `Estación '${newStation.nombreEstacion}' creada con su primer parámetro.`
+        `Estación '${newStation.nombreEstacion}' creada con su primer parámetro.`,
       );
       setCreatedStationId(newStation.id);
       queryClient.invalidateQueries({ queryKey: ["lineas"] });
@@ -151,7 +151,7 @@ const CrearEstacionPage: React.FC = () => {
   const handleParametroChange = (
     paramId: number,
     field: keyof Parametro,
-    value: any
+    value: any,
   ) => {
     setParametros(
       parametros.map((p) => {
@@ -165,7 +165,7 @@ const CrearEstacionPage: React.FC = () => {
           return updatedParam;
         }
         return p;
-      })
+      }),
     );
   };
 
@@ -391,173 +391,177 @@ const CrearEstacionPage: React.FC = () => {
             Parámetros a Registrar
           </h5>
           {/* Mapeo de Parámetros */}
-          {parametros.map((param) => {
-            return (
-              <motion.div
-                key={param.id}
-                layout
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.3 }}
-                className="p-4 border rounded-md dark:border-gray-600 bg-white dark:bg-gray-700 grid grid-cols-1 md:grid-cols-3 gap-4 items-start shadow-sm"
-              >
-                {/* Columna 1: Nombre y Dirección OPC */}
-                <div className="space-y-2">
-                  <label className="text-xs font-medium text-gray-500 dark:text-gray-400">
-                    Nombre y Dirección OPC (Parámetro)
-                  </label>
-                  <input
-                    type="text"
-                    maxLength={50}
-                    value={param.nombreParametro}
-                    onChange={(e) =>
-                      handleParametroChange(
-                        param.id,
-                        "nombreParametro",
-                        e.target.value
-                      )
-                    }
-                    placeholder="Nombre Parámetro *"
-                    required
-                    className="w-full p-2 border rounded-md dark:bg-gray-600 dark:border-gray-500 focus:ring-2 focus:ring-blue-500 "
-                  />
-                  <input
-                    type="text"
-                    maxLength={100}
-                    value={param.direccionOpcUa}
-                    onChange={(e) =>
-                      handleParametroChange(
-                        param.id,
-                        "direccionOpcUa",
-                        e.target.value
-                      )
-                    }
-                    placeholder="Dirección OPC UA *"
-                    required
-                    className="w-full p-2 border rounded-md dark:bg-gray-600 dark:border-gray-500 focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
+          <AnimatePresence>
+            {parametros.map((param) => {
+              return (
+                <motion.div
+                  key={param.id}
+                  layout
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.3 }}
+                  className="p-4 border rounded-md dark:border-gray-600 bg-white dark:bg-gray-700 grid grid-cols-1 md:grid-cols-3 gap-4 items-start shadow-sm"
+                >
+                  {/* Columna 1: Nombre y Dirección OPC */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                      Nombre y Dirección OPC (Parámetro)
+                    </label>
+                    <input
+                      type="text"
+                      maxLength={50}
+                      value={param.nombreParametro}
+                      onChange={(e) =>
+                        handleParametroChange(
+                          param.id,
+                          "nombreParametro",
+                          e.target.value,
+                        )
+                      }
+                      placeholder="Nombre Parámetro *"
+                      required
+                      className="w-full p-2 border rounded-md dark:bg-gray-600 dark:border-gray-500 focus:ring-2 focus:ring-blue-500 "
+                    />
+                    <input
+                      type="text"
+                      maxLength={100}
+                      value={param.direccionOpcUa}
+                      onChange={(e) =>
+                        handleParametroChange(
+                          param.id,
+                          "direccionOpcUa",
+                          e.target.value,
+                        )
+                      }
+                      placeholder="Dirección OPC UA *"
+                      required
+                      className="w-full p-2 border rounded-md dark:bg-gray-600 dark:border-gray-500 focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
 
-                {/* Columna 2: Tipo y Configuración */}
-                <div className="space-y-2">
-                  <label className="text-xs font-medium text-gray-500 dark:text-gray-400">
-                    Tipo y Configuración
-                  </label>
-                  <select
-                    value={param.tipo}
-                    onChange={(e) =>
-                      handleParametroChange(
-                        param.id,
-                        "tipo",
-                        e.target.value as Parametro["tipo"]
-                      )
-                    }
-                    className="w-full p-2 border rounded-md dark:bg-gray-600 dark:border-gray-500 focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="numerico">Numérico</option>
-                    <option value="texto">Texto</option>
-                    <option value="booleano">Booleano</option>
-                  </select>
+                  {/* Columna 2: Tipo y Configuración */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                      Tipo y Configuración
+                    </label>
+                    <select
+                      value={param.tipo}
+                      onChange={(e) =>
+                        handleParametroChange(
+                          param.id,
+                          "tipo",
+                          e.target.value as Parametro["tipo"],
+                        )
+                      }
+                      className="w-full p-2 border rounded-md dark:bg-gray-600 dark:border-gray-500 focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="numerico">Numérico</option>
+                      <option value="texto">Texto</option>
+                      <option value="booleano">Booleano</option>
+                    </select>
 
-                  {param.tipo === "numerico" && (
-                    <div className="flex flex-col md:flex-row md:space-x-2">
-                      <input
-                        maxLength={25}
-                        type="number"
-                        step="any"
-                        value={param.valorMin ?? ""}
-                        onChange={(e) =>
-                          handleParametroChange(
-                            param.id,
-                            "valorMin",
-                            e.target.value
-                          )
-                        }
-                        placeholder="Mín (Opcional)"
-                        className="w-full md:w-1/2 p-2 border rounded-md dark:bg-gray-600 dark:border-gray-500"
-                      />
-                      <input
-                        maxLength={25}
-                        type="number"
-                        step="any"
-                        value={param.valorMax ?? ""}
-                        onChange={(e) =>
-                          handleParametroChange(
-                            param.id,
-                            "valorMax",
-                            e.target.value
-                          )
-                        }
-                        placeholder="Máx (Opcional)"
-                        className="w-full md:w-1/2 p-2 border rounded-md dark:bg-gray-600 dark:border-gray-500"
-                      />
-                    </div>
-                  )}
+                    {param.tipo === "numerico" && (
+                      <div className="flex flex-col md:flex-row md:space-x-2">
+                        <input
+                          maxLength={25}
+                          type="number"
+                          step="any"
+                          value={param.valorMin ?? ""}
+                          onChange={(e) =>
+                            handleParametroChange(
+                              param.id,
+                              "valorMin",
+                              e.target.value,
+                            )
+                          }
+                          placeholder="Mín (Opcional)"
+                          className="w-full md:w-1/2 p-2 border rounded-md dark:bg-gray-600 dark:border-gray-500"
+                        />
+                        <input
+                          maxLength={25}
+                          type="number"
+                          step="any"
+                          value={param.valorMax ?? ""}
+                          onChange={(e) =>
+                            handleParametroChange(
+                              param.id,
+                              "valorMax",
+                              e.target.value,
+                            )
+                          }
+                          placeholder="Máx (Opcional)"
+                          className="w-full md:w-1/2 p-2 border rounded-md dark:bg-gray-600 dark:border-gray-500"
+                        />
+                      </div>
+                    )}
 
-                  {param.tipo === "booleano" && (
-                    <div className="flex flex-col space-y-1 pt-1">
-                      <label className="text-xs font-medium text-gray-500 dark:text-gray-400">
-                        Criterio de Éxito (OK)
-                      </label>
-                      <select
-                        value={
-                          param.valorBooleanoOK === null
-                            ? ""
-                            : param.valorBooleanoOK
-                            ? "true"
-                            : "false"
-                        }
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          const boolVal =
-                            val === "true"
-                              ? true
-                              : val === "false"
-                              ? false
-                              : null;
-                          handleParametroChange(
-                            param.id,
-                            "valorBooleanoOK",
-                            boolVal
-                          );
-                        }}
-                        className="w-full p-2 border rounded-md dark:bg-gray-600 dark:border-gray-500 focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="">(Asumir 'true' es OK)</option>
-                        <option value="true">El valor DEBE ser 'true'</option>
-                        <option value="false">El valor DEBE ser 'false'</option>
-                      </select>
-                    </div>
-                  )}
-                </div>
+                    {param.tipo === "booleano" && (
+                      <div className="flex flex-col space-y-1 pt-1">
+                        <label className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                          Criterio de Éxito (OK)
+                        </label>
+                        <select
+                          value={
+                            param.valorBooleanoOK === null
+                              ? ""
+                              : param.valorBooleanoOK
+                                ? "true"
+                                : "false"
+                          }
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            const boolVal =
+                              val === "true"
+                                ? true
+                                : val === "false"
+                                  ? false
+                                  : null;
+                            handleParametroChange(
+                              param.id,
+                              "valorBooleanoOK",
+                              boolVal,
+                            );
+                          }}
+                          className="w-full p-2 border rounded-md dark:bg-gray-600 dark:border-gray-500 focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="">(Asumir 'true' es OK)</option>
+                          <option value="true">El valor DEBE ser 'true'</option>
+                          <option value="false">
+                            El valor DEBE ser 'false'
+                          </option>
+                        </select>
+                      </div>
+                    )}
+                  </div>
 
-                {/* Columna 3: Acciones */}
-                <div className="flex items-center justify-end space-x-2 md:pt-6">
-                  <motion.button
-                    type="button"
-                    onClick={() => handleSaveIndividualParam(param)}
-                    className="p-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
-                    title="Guardar Parámetro"
-                    disabled={
-                      createStationWithParamMutation.isPending ||
-                      createParamForStationMutation.isPending
-                    }
-                  >
-                    <FaSave />
-                  </motion.button>
-                  <motion.button
-                    type="button"
-                    onClick={() => handleRemoveParametro(param.id)}
-                    className="p-2 bg-red-600 text-white rounded-md hover:bg-red-700"
-                    title="Eliminar Parámetro"
-                  >
-                    <FaTrashAlt />
-                  </motion.button>
-                </div>
-              </motion.div>
-            );
-          })}
+                  {/* Columna 3: Acciones */}
+                  <div className="flex items-center justify-end space-x-2 md:pt-6">
+                    <motion.button
+                      type="button"
+                      onClick={() => handleSaveIndividualParam(param)}
+                      className="p-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
+                      title="Guardar Parámetro"
+                      disabled={
+                        createStationWithParamMutation.isPending ||
+                        createParamForStationMutation.isPending
+                      }
+                    >
+                      <FaSave />
+                    </motion.button>
+                    <motion.button
+                      type="button"
+                      onClick={() => handleRemoveParametro(param.id)}
+                      className="p-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                      title="Eliminar Parámetro"
+                    >
+                      <FaTrashAlt />
+                    </motion.button>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
           {/* Botón Añadir Parámetro */}
           <button
             type="button"

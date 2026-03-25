@@ -70,7 +70,7 @@ const CrearLineaPage: React.FC = () => {
         {/* --- V5: CAMPO NUEVO PARA URL --- */}
         <div>
           <label className="block text-gray-700 dark:text-gray-300 font-medium mb-1">
-            URL del Servidor OPC UA (Opcional)
+            URL del Servidor OPC UA
           </label>
           <input
             type="text"

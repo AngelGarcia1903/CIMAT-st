@@ -87,6 +87,118 @@ export const finalizarLote = async (req: Request, res: Response) => {
   }
 };
 
+async function actualizarEstadoProducto(
+  productoId: number,
+  estadoActual: EstadoProducto,
+  lineaId: number,
+  huboFalloEnEstaPasada: boolean,
+  estacionActualId: number // <--- NUEVO ARGUMENTO: ID EXPLÍCITO
+) {
+  // 1. Obtener datos de referencia
+  const linea = await prisma.lineaProduccion.findUnique({
+    where: { id: lineaId },
+    select: { limiteReprocesos: true },
+  });
+  const limite = linea?.limiteReprocesos ?? 3;
+
+  const primeraEstacion = await prisma.estacion.findFirst({
+    where: { lineaId: lineaId },
+    orderBy: { orden: "asc" },
+  });
+
+  const ultimaEstacion = await prisma.estacion.findFirst({
+    where: { lineaId: lineaId },
+    orderBy: { orden: "desc" },
+  });
+
+  //const registroActual = await prisma.registro.findFirst({
+  //where: { productoId: productoId },
+  //orderBy: { fecha: "desc" },
+  //include: { estacion: true },
+  //});
+
+  const esPrimeraEstacion = estacionActualId === primeraEstacion?.id;
+  const esUltimaEstacion = estacionActualId === ultimaEstacion?.id; // 2. Lógica de Incremento de Reprocesos (Solo al RE-INICIAR ciclo en Estación 1)
+
+  // Debug para ver qué está pasando (opcional)
+  console.log(
+    `[Cerebro] Eval: ProdID=${productoId}, Est=${estacionActualId}, Estado=${estadoActual}, EsPrimera=${esPrimeraEstacion}, EsUltima=${esUltimaEstacion}`
+  );
+
+  let nuevoConteo = 0;
+  const productoAntes = await prisma.producto.findUnique({
+    where: { id: productoId },
+    select: { conteoReprocesos: true },
+  });
+  nuevoConteo = productoAntes?.conteoReprocesos || 0;
+
+  if (esPrimeraEstacion && estadoActual === EstadoProducto.REPROCESO) {
+    nuevoConteo++;
+    await prisma.producto.update({
+      where: { id: productoId },
+      data: { conteoReprocesos: nuevoConteo },
+    });
+    console.log(
+      `[Cerebro] Producto ${productoId}: Iniciando Reproceso #${nuevoConteo}`
+    );
+  } // 3. Regla Crítica: DESCARTADO por Límite
+
+  if (nuevoConteo >= limite) {
+    if (estadoActual !== EstadoProducto.DESCARTADO) {
+      await prisma.producto.update({
+        where: { id: productoId },
+        data: { estado: EstadoProducto.DESCARTADO },
+      });
+      console.log(
+        `[Cerebro] 🛑 Producto ${productoId} DESCARTADO (Límite excedido).`
+      );
+    }
+    return;
+  } // 4. Lógica de Estados (CORREGIDA V5)
+
+  let nuevoEstado: EstadoProducto = estadoActual;
+
+  if (esUltimaEstacion) {
+    // --- EVALUACIÓN FINAL ---
+    // Al llegar al final, revisamos si tiene ALGÚN registro NO_OK en su historia
+    // (incluyendo el que acaba de pasar si falló)
+    const fallosHistoricos = await prisma.registro.count({
+      where: { productoId: productoId, resultado: "NO_OK" },
+    });
+
+    if (fallosHistoricos > 0) {
+      nuevoEstado = EstadoProducto.REPROCESO;
+      console.log(
+        `[Cerebro] Fin de línea con fallos (${fallosHistoricos}) -> REPROCESO`
+      );
+    } else {
+      nuevoEstado = EstadoProducto.COMPLETADO;
+      console.log(`[Cerebro] Fin de línea limpio -> COMPLETADO`);
+    }
+  } else {
+    // --- ESTACIÓN INTERMEDIA ---
+    // Regla V5: Mientras viaja, SIEMPRE es EN_PROCESO (Azul),
+    // aunque acabe de fallar en esta estación.
+    nuevoEstado = EstadoProducto.EN_PROCESO;
+
+    if (huboFalloEnEstaPasada) {
+      console.log(
+        `[Cerebro] Fallo intermedio detectado. Se mantiene EN_PROCESO hasta el final.`
+      );
+    }
+  } // 5. Actualizar Estado si cambió
+
+  if (nuevoEstado !== estadoActual) {
+    await prisma.producto.update({
+      where: { id: productoId },
+      data: { estado: nuevoEstado },
+    });
+    console.log(
+      `[Cerebro] Estado actualizado: ${estadoActual} -> ${nuevoEstado}`
+    );
+  }
+}
+
 // ========================================================================
 // POST - Registrar Paso de Producción (BLINDADO CONTRA CONCURRENCIA)
 // ========================================================================
@@ -125,7 +237,7 @@ export const registrarPaso = async (req: Request, res: Response) => {
       // Intento 1: Upsert normal (Crear o Actualizar)
       producto = await prisma.producto.upsert({
         where: { numeroSerie: numeroSerie.trim() },
-        update: { estado: EstadoProducto.EN_PROCESO },
+        update: { loteId: loteActivo.id },
         create: {
           numeroSerie: numeroSerie.trim(),
           loteId: loteActivo.id,
@@ -251,10 +363,29 @@ export const registrarPaso = async (req: Request, res: Response) => {
         .json({ message: "No se pudieron procesar los parámetros." });
     }
 
+    // 1. EJECUTAR EL CEREBRO:
+    // Ahora el controlador es quien decide el estado, no el servicio OPC UA.
+    // Esto asegura que el registro manual también active la lógica de descartes.
+    await actualizarEstadoProducto(
+      producto.id,
+      producto.estado, // Estado ANTES del análisis
+      estacion.lineaId,
+      estacionHaFallado,
+      estacionId
+    );
+
+    // 2. OBTENER PRODUCTO ACTUALIZADO:
+    // Necesitamos saber si el cerebro lo cambió a REPROCESO o DESCARTADO
+    const productoActualizado = await prisma.producto.findUnique({
+      where: { id: producto.id },
+    });
+
+    // --- FIN CAMBIO ---
+
     // --- 6. Enviar respuesta ---
     res.status(201).json({
       message: `Paso registrado para ${producto.numeroSerie} en ${estacion.nombreEstacion}.`,
-      producto: producto,
+      producto: productoActualizado,
       estacion: estacion,
       estacionHaFallado: estacionHaFallado,
     });
